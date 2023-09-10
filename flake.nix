@@ -1,27 +1,27 @@
 {
   description = "K8s nixhelm experiments";
-  nixConfig.bash-prompt = "[nix(k8s)] ";
-  inputs = { nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; };
+  inputs = { 
+    nixhelm.url = "github:farcaller/nixhelm";
+    kubegen.url = "github:farcaller/nix-kube-generators";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; 
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, nixhelm, kubegen }:
     let
       pkgs = nixpkgs.legacyPackages.x86_64-linux.pkgs;
-      testScript = pkgs.writeScriptBin "test.sh" ''
-        #!/bin/sh
-        echo $FOO
-      '';
+      kubelib = kubegen.lib { inherit pkgs; };
     in {
+      argo-res = (kubelib.buildHelmChart {
+        name = "argo";
+        chart = (nixhelm.charts { inherit pkgs; }).argoproj.argo-cd;
+        namespace = "argo";
+      });
       devShells.x86_64-linux.default = pkgs.mkShell {
-        name = "My-project build environment";
+        name = "k8s-shell";
         buildInputs = with pkgs; [
          minikube
          kubernetes-helm
-         testScript
         ];
-        shellHook = ''
-          echo "Welcome in $name"
-          export FOO="BAR"
-        '';
       };
     };
 }
